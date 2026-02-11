@@ -1,0 +1,423 @@
+openapi: 3.0.3
+info:
+  title: eZhire API
+  version: 1.0.0
+  description: API collection for booking Car Rental
+
+servers:
+  - url: "https://{baseURL}"
+    description: Server URL (editable by client)
+    variables:
+      baseURL:
+        default: "ezhire.me/rental"
+        description: Base URL of the API server
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Enter your token here (e.g., Token {your_token_here})'
+
+  schemas:
+    Car:
+      type: object
+      properties:
+        vehicle_id:
+          type: integer
+        vehicle_category:
+          type: string
+        make:
+          type: string
+        model:
+          type: string
+        vehicle_image:
+          type: string
+          format: uri
+        daily_rate:
+          type: number
+          format: float
+        weekly_rate:
+          type: number
+          format: float
+        monthly_rate:
+          type: number
+          format: float
+        tax_rate:
+          type: number
+        currency:
+          type: string
+        total_estimated_amount_weekly:
+          type: number
+          format: float
+        total_estimated_amount_daily:
+          type: number
+          format: float
+        total_estimated_amount_monthly:
+          type: number
+          format: float
+        daily_allowed_km:
+          type: number
+          format: float
+        weekly_allowed_km:
+          type: number
+          format: float
+        monthly_allowed_km:
+          type: number
+          format: float
+        extra_km_price:
+          type: number
+          format: float
+        transmission:
+          type: string
+        number_of_seats:
+          type: integer
+        air_conditioning:
+          type: integer
+        number_of_doors:
+          type: integer
+        luggage_capacity:
+          type: integer
+        car_name:
+          type: string
+        vehicle_class:
+          type: string
+          nullable: true
+
+    PickupLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: string
+        longitude:
+          type: string
+        phone_no:
+          type: string
+        friday_open_time:
+          type: string
+        sat_open_time:
+          type: string
+        sun_open_time:
+          type: string
+        mon_open_time:
+          type: string
+        tues_open_time:
+          type: string
+        wed_open_time:
+          type: string
+        thur_open_time:
+          type: string
+        friday_close_time:
+          type: string
+        sat_close_time:
+          type: string
+        sun_close_time:
+          type: string
+        mon_close_time:
+          type: string
+        tues_close_time:
+          type: string
+        wed_close_time:
+          type: string
+        thur_close_time:
+          type: string
+        city_id:
+          type: integer
+        city:
+          type: string
+        country:
+          type: string
+        email:
+          type: string
+
+    PreBookingRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          description: Customer's first name
+          example: "Test"
+        last_name:
+          type: string
+          description: Customer's last name
+          example: "User"
+        email:
+          type: string
+          format: email
+          description: Customer's email address
+          example: "mak00757@yopmail.com"
+        mobile:
+          type: string
+          description: Customer's mobile number
+          example: "+971563265704"
+        country_code:
+          type: string
+          description: Country code for the mobile number
+          example: "+971"
+        renting_in:
+          type: integer
+          description: Renting city, use 1 for now
+          example: 1
+        car_id:
+          type: integer
+          description: vehicle_id of the selected car
+          example: 438
+        deliver_date:
+          type: string
+          description: Pickup date in dd/mm/yyyy format
+          example: "17/01/2026"
+        deliver_time:
+          type: string
+          description: Pickup time in 24-hour format
+          example: "18:00"
+        self_pickup_id:
+          type: integer
+          description: Pickup location ID
+          example: 25
+        return_date:
+          type: string
+          description: Return date in dd/mm/yyyy format
+          example: "18/01/2026"
+        self_return_id:
+          type: integer
+          description: Return location ID
+          example: 25
+      required:
+        - first_name
+        - last_name
+        - email
+        - mobile
+        - country_code
+        - renting_in
+        - car_id
+        - deliver_date
+        - deliver_time
+        - self_pickup_id
+        - return_date
+        - self_return_id
+
+    PreBookingResponse:
+      type: object
+      properties:
+        status:
+          type: boolean
+          description: Indicates whether the pre-booking was created successfully
+          example: true
+
+        booking_id:
+          type: integer
+          description: Unique ID of the created pre-booking
+          example: 1652
+
+        amount:
+          type: number
+          format: float
+          description: Total payable amount for the booking including taxes
+          example: 157.5
+
+        hashable_url:
+          type: string
+          format: uri
+          description: Secure payment URL generated for the customer to complete payment
+          example: "https://www.ezhire.me/erp/#/pre_booking_generation/eb608455af9b917504bcf3df70a45c7823c3cfddf850f2a8840da658b5ac6bea"
+
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /get_rental_cars/:
+    get:
+      tags:
+        - Rental Cars
+      summary: Get available rental cars
+      description: Fetch a list of available rental cars with details and rates.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Car'
+              example:
+                status: true
+                message: "Success"
+                data:
+                  - vehicle_id: 428
+                    vehicle_category: "Luxury SUV"
+                    make: "Range Rover"
+                    model: "Range Rover Svr"
+                    vehicle_image: "https://ezhire.me/erp/media/2025/01/15/98c12b33-6b7.png"
+                    daily_rate: 125.0
+                    weekly_rate: 112.5
+                    monthly_rate: 100.0
+                    tax_rate: 5
+                    currency: "AED"
+                    total_estimated_amount_weekly: 118.12
+                    total_estimated_amount_daily: 131.25
+                    total_estimated_amount_monthly: 105.0
+                    daily_allowed_km: 0.0
+                    weekly_allowed_km: 0.0
+                    monthly_allowed_km: 0.0
+                    extra_km_price: 0.0
+                    transmission: "AT"
+                    number_of_seats: 4
+                    air_conditioning: 1
+                    number_of_doors: 4
+                    luggage_capacity: 1
+                    car_name: "Range Rover Svr"
+                    vehicle_class: null
+
+  /get_pickup_locations/:
+    get:
+      tags:
+        - Pickup Locations
+      summary: Get all pickup locations
+      description: Fetch all pickup points with address, working hours, and contact information.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PickupLocation'
+              example:
+                status: true
+                message: "Success"
+                data:
+                  - id: 19
+                    name: "Deira Near Dnata"
+                    address: "eZhire fleet partner – Shift Leasing Rent A Car LLC"
+                    latitude: "25.197525"
+                    longitude: "55.274288"
+                    phone_no: "+971-4-2141840"
+                    friday_open_time: "00:00"
+                    sat_open_time: "00:00"
+                    sun_open_time: "00:00"
+                    mon_open_time: "00:00"
+                    tues_open_time: "00:00"
+                    wed_open_time: "00:00"
+                    thur_open_time: "00:00"
+                    friday_close_time: "23:55"
+                    sat_close_time: "23:55"
+                    sun_close_time: "23:55"
+                    mon_close_time: "23:55"
+                    tues_close_time: "23:55"
+                    wed_close_time: "23:55"
+                    thur_close_time: "23:55"
+                    city_id: 1
+                    city: "Dubai"
+                    country: "United Arab Emirates"
+                    email: "dispatchcenterw0001@ezhire.life"
+
+  /generate_pre_booking/:
+    post:
+      tags:
+        - Generate Booking
+      summary: Create a pre-booking
+      description: Submit booking details to create a pre-booking. On success server sends payment link to proceed. User also receive payment link via email and WhatsApp.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreBookingRequest'
+            example:
+              first_name: "Test"
+              last_name: "User"
+              email: "mak00757@yopmail.com"
+              mobile: "+971563265704"
+              country_code: "+971"
+              renting_in: 1
+              car_id: 438
+              deliver_date: "17/01/2026"
+              deliver_time: "18:00"
+              self_pickup_id: 25
+              return_date: "18/01/2026"
+              self_return_id: 25
+      responses:
+        '200':
+          description: Successful booking creation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreBookingResponse'
+              example:
+                status: true
+                booking_id: 1652
+                amount: 157.5
+                hashable_url: "https://www.ezhire.me/erp/#/pre_booking_generation/eb608455af9b917504bcf3df70a45c7823c3cfddf850f2a8840da658b5ac6bea"
+
+  /cancel_pre_booking/:
+    post:
+      tags:
+        - Cancel Booking
+      summary: Cancel a pre-booking
+      description: Cancel an existing pre-booking by providing the booking ID and reason for cancellation.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking_id:
+                  type: integer
+                  description: ID of the booking to cancel
+                reason:
+                  type: string
+                  description: Reason for cancellation
+              required:
+                - booking_id
+                - reason
+            example:
+              booking_id: 1460
+              reason: "test"
+      responses:
+        '200':
+          description: Successful cancellation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+              example:
+                status: true
+                message: "Reservation cancelled successfully"

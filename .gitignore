@@ -1,0 +1,14 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Testing / tooling
+.pytest_cache/
+.deepeval/
+
+# Generated
+webpages/cleaned/
+webpages/support_docs.json
