@@ -11,17 +11,13 @@ import os
 import re
 from collections import Counter
 from typing import Any, Literal
-from urllib.parse import urlparse
 from html.parser import HTMLParser
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://ezhire.me/rental"
-IMAGE_BASE_URL = "https://www.ezhire.me"
-FALLBACK_IMAGE_URL = "https://www.ezhire.me/erp/media/placeholder.png"
 SUPPORTED_COUNTRY_CODES = ["971", "966", "973"]
-IMAGE_OVERRIDES_PATH = os.getenv("VEHICLE_IMAGE_OVERRIDES", "vehicle_images.json")
 SUPPORT_PAGES_DIR = os.getenv("SUPPORT_PAGES_DIR", "webpages")
 SUPPORT_FAQ_FILE = os.getenv("SUPPORT_FAQ_FILE", "FAQ.html")
 SUPPORT_TERMS_FILE = os.getenv("SUPPORT_TERMS_FILE", "TnC.html")
@@ -38,7 +34,6 @@ _SUPPORT_TERM_IDF: dict[str, float] = {}
 _SUPPORT_AVG_DOC_LEN = 0.0
 _SUPPORT_INDEX_ERROR: str | None = None
 _http_client: httpx.AsyncClient | None = None
-_IMAGE_OVERRIDES: dict[str, str] = {}
 
 _STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have", "how",
@@ -51,9 +46,8 @@ _STOP_WORDS = {
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    global _http_client, _IMAGE_OVERRIDES
+    global _http_client
     _http_client = httpx.AsyncClient(timeout=30.0)
-    _IMAGE_OVERRIDES = load_image_overrides()
     try:
         build_support_index()
     except Exception as exc:
@@ -65,19 +59,6 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="eZhire API", version="1.0.0", lifespan=lifespan)
 
-
-def normalize_vehicle_image(url: str | None) -> str:
-    if not url:
-        return FALLBACK_IMAGE_URL
-    try:
-        parsed = urlparse(url)
-    except ValueError:
-        return FALLBACK_IMAGE_URL
-    if parsed.scheme and parsed.netloc:
-        if parsed.netloc == "ezhire.me":
-            return url.replace("https://ezhire.me", IMAGE_BASE_URL, 1)
-        return url
-    return FALLBACK_IMAGE_URL
 
 
 def split_phone_e164(phone_e164: str) -> tuple[str, str]:
@@ -98,26 +79,6 @@ def normalize_date(date_str: str) -> str:
     except ValueError:
         return date_str
 
-
-def load_image_overrides() -> dict[str, str]:
-    try:
-        with open(IMAGE_OVERRIDES_PATH, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-        if isinstance(data, dict):
-            return {str(k): str(v) for k, v in data.items()}
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError:
-        return {}
-    return {}
-
-
-def get_vehicle_image(vehicle_id: int | None, url: str | None) -> str:
-    if vehicle_id is not None:
-        override = _IMAGE_OVERRIDES.get(str(vehicle_id))
-        if override:
-            return override
-    return normalize_vehicle_image(url)
 
 
 async def proxy_request(method: str, path: str, authorization: str, json_body=None):
@@ -733,22 +694,50 @@ class SupportResponse(BaseModel):
     data: SupportData
 
 
+class WelcomeData(BaseModel):
+    greeting: str
+    vehicles: list[Vehicle]
+    pickup_locations: list[PickupLocation]
+    support_phone: str
+
+
+class WelcomeResponse(BaseModel):
+    status: bool
+    message: str
+    data: WelcomeData
+
+
 # --- Endpoints ---
+
+@app.get("/welcome/", response_model=WelcomeResponse)
+async def welcome(authorization: str = Header(...)):
+    """Aggregated dashboard for the welcome agent: cars + locations in one call."""
+    cars_status, cars_data = await fetch_upstream_json("/get_rental_cars/", authorization)
+    locs_status, locs_data = await fetch_upstream_json("/get_pickup_locations/", authorization)
+
+    if cars_status != 200 or not isinstance(cars_data, dict):
+        raise HTTPException(status_code=502, detail="Failed to fetch rental cars from upstream")
+    if locs_status != 200 or not isinstance(locs_data, dict):
+        raise HTTPException(status_code=502, detail="Failed to fetch pickup locations from upstream")
+
+    return {
+        "status": True,
+        "message": "Welcome to eZhire",
+        "data": {
+            "greeting": (
+                "Welcome to eZhire! Here are the latest rental cars available "
+                "across the UAE, along with our pickup and return locations."
+            ),
+            "vehicles": cars_data.get("data", []),
+            "pickup_locations": locs_data.get("data", []),
+            "support_phone": SUPPORT_PHONE,
+        },
+    }
+
 
 @app.get("/get_rental_cars/", response_model=RentalCarsResponse)
 async def get_rental_cars(authorization: str = Header(...)):
-    response = await proxy_request("GET", "/get_rental_cars/", authorization)
-    if isinstance(response, JSONResponse) and isinstance(response.body, (bytes, bytearray)):
-        try:
-            data = json.loads(response.body)
-        except Exception:
-            return response
-        if isinstance(data, dict) and isinstance(data.get("data"), list):
-            for item in data["data"]:
-                if isinstance(item, dict):
-                    item["vehicle_image"] = get_vehicle_image(item.get("vehicle_id"), item.get("vehicle_image"))
-            return JSONResponse(status_code=response.status_code, content=data)
-    return response
+    return await proxy_request("GET", "/get_rental_cars/", authorization)
 
 
 @app.get("/get_pickup_locations/", response_model=PickupLocationsResponse)

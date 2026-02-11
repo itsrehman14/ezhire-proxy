@@ -10,39 +10,12 @@ import server
 
 @pytest.fixture(scope="module", autouse=True)
 def _build_local_support_index():
-    # Populate image overrides cache (normally done by lifespan).
-    server._IMAGE_OVERRIDES = server.load_image_overrides()
     # Build once from local webpages/ so support tests never depend on network APIs.
     server.build_support_index()
 
 
 def _json_body(response: JSONResponse) -> dict:
     return json.loads(response.body)
-
-
-# --- get_rental_cars ---
-
-
-@pytest.mark.asyncio
-async def test_get_rental_cars_transforms_images(monkeypatch: pytest.MonkeyPatch):
-    payload = {
-        "status": True,
-        "data": [
-            {"vehicle_id": 1162, "vehicle_image": "https://ezhire.me/path/a.png"},
-            {"vehicle_id": 9999, "vehicle_image": ""},
-        ],
-    }
-
-    async def fake_proxy(method, path, authorization, json_body=None):
-        return JSONResponse(status_code=200, content=payload)
-
-    monkeypatch.setattr(server, "proxy_request", fake_proxy)
-    response = await server.get_rental_cars("Token test")
-    body = _json_body(response)
-
-    assert response.status_code == 200
-    assert body["data"][0]["vehicle_image"].startswith("https://www.ezhire.me/")
-    assert body["data"][1]["vehicle_image"] == server.FALLBACK_IMAGE_URL
 
 
 # --- get_pickup_locations ---
