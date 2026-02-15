@@ -1,0 +1,17 @@
+.git
+.env
+.pytest_cache
+.deepeval
+__pycache__
+*.py[cod]
+*.log
+tests/
+docs/
+api_spec/
+preprocess_support.py
+webpages/cleaned/
+webpages/FAQ.html
+webpages/TnC.html
+Dockerfile
+.dockerignore
+.gitignore

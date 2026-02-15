@@ -4,6 +4,9 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
 
 # Testing / tooling
 .pytest_cache/
@@ -11,4 +14,19 @@ __pycache__/
 
 # Generated
 webpages/cleaned/
-webpages/support_docs.json
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+*.log
+
+# Docs (not part of the API)
+docs/
+api_spec/
+preprocess_support.py
+
+# OS
+.DS_Store
+Thumbs.db
