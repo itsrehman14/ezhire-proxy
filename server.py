@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse, Response
 import html
 import httpx
@@ -58,6 +59,8 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="eZhire API", version="1.0.0", lifespan=lifespan)
+
+_auth_header = APIKeyHeader(name="Authorization", description="e.g. Token <your-token>")
 
 
 
@@ -710,7 +713,7 @@ class WelcomeResponse(BaseModel):
 # --- Endpoints ---
 
 @app.get("/welcome/", response_model=WelcomeResponse)
-async def welcome(authorization: str = Header(...)):
+async def welcome(authorization: str = _auth_header):
     """Aggregated dashboard for the welcome agent: cars + locations in one call."""
     cars_status, cars_data = await fetch_upstream_json("/get_rental_cars/", authorization)
     locs_status, locs_data = await fetch_upstream_json("/get_pickup_locations/", authorization)
@@ -736,13 +739,13 @@ async def welcome(authorization: str = Header(...)):
 
 
 @app.get("/get_rental_cars/", response_model=RentalCarsResponse)
-async def get_rental_cars(authorization: str = Header(...)):
+async def get_rental_cars(authorization: str = _auth_header):
     return await proxy_request("GET", "/get_rental_cars/", authorization)
 
 
 @app.get("/get_pickup_locations/", response_model=PickupLocationsResponse)
 async def get_pickup_locations(
-    authorization: str = Header(...),
+    authorization: str = _auth_header,
     city: str | None = Query(default=None),
     country: str | None = Query(default=None),
 ):
@@ -781,7 +784,7 @@ async def get_pickup_locations(
 
 
 @app.post("/generate_pre_booking/", response_model=PreBookingData)
-async def generate_pre_booking(body: PreBookingRequest, authorization: str = Header(...)):
+async def generate_pre_booking(body: PreBookingRequest, authorization: str = _auth_header):
     country_code, _ = split_phone_e164(body.phone_e164)
     payload = body.model_dump()
     payload["country_code"] = country_code
@@ -793,12 +796,12 @@ async def generate_pre_booking(body: PreBookingRequest, authorization: str = Hea
 
 
 @app.post("/cancel_pre_booking/", response_model=CancelBookingResponse)
-async def cancel_pre_booking(body: CancelBookingRequest, authorization: str = Header(...)):
+async def cancel_pre_booking(body: CancelBookingRequest, authorization: str = _auth_header):
     return await proxy_request("POST", "/cancel_pre_booking/", authorization, json_body=body.model_dump())
 
 
 @app.post("/quote/", response_model=QuoteResponse)
-async def quote_rental(body: QuoteRequest, authorization: str = Header(...)):
+async def quote_rental(body: QuoteRequest, authorization: str = _auth_header):
     status, data = await fetch_upstream_json("/get_rental_cars/", authorization)
     if status != 200 or not isinstance(data, dict):
         return JSONResponse(status_code=status, content=data or {"status": False, "message": "Upstream error"})
